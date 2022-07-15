@@ -111,7 +111,7 @@ enum Commands {
             .required(false)
             .args(&["pages", "every"])
         ))]
-    /// Extract specitic pages from a PDF
+    /// Extract specific pages from a PDF
     Extract {
         #[clap(required = true, parse(from_os_str))]
         infile: std::path::PathBuf,
