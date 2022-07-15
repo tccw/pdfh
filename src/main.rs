@@ -1,8 +1,8 @@
-use std::ops::RangeInclusive;
-
 extern crate lopdf;
 
 use clap::{Parser, Subcommand, ArgGroup};
+
+mod cmd_utils;
 
 const DEG_MULTIPLE: u16 = 90;
 
@@ -157,8 +157,8 @@ fn main() {
                            every, 
                            negate,
                            compress } => {
-            // TODO
-            println!("Not Implemented");
+                            
+            cmd_utils::delete(infile, outfile, pages, every, negate, compress);
         },
         Commands::Reverse { infile, outfile } => {
             // TODO
