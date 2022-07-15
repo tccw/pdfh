@@ -19,7 +19,7 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Commands {
     #[clap(arg_required_else_help = false)]
-    /// Merges pdfs into a single file
+    /// Merges PDFs into a single file
     Merge {
         #[clap(required = true, parse(from_os_str))]
         infiles: Vec<std::path::PathBuf>,
@@ -29,7 +29,7 @@ enum Commands {
         compress: bool
     },
     #[clap(arg_required_else_help = false)]
-    /// Splits each page of a pdf into a separate pdf
+    /// Splits each page of a PDF into a separate file
     Split {
         #[clap(required = true, parse(from_os_str))]
         infile: std::path::PathBuf,
@@ -39,7 +39,7 @@ enum Commands {
         compress: bool
     },
     #[clap(arg_required_else_help = false)]
-    /// Duplicates a pdf n times and saves the duplicates into a single file
+    /// Duplicates a PDF n times and saves the duplicates into a single file
     Dupe {
         #[clap(required = true, parse(from_os_str))]
         infile: std::path::PathBuf,
@@ -74,7 +74,7 @@ enum Commands {
             .required(false)
             .args(&["pages", "every"])
         ))]
-    /// Delete pages from a pdf document. 
+    /// Delete pages from a PDF. 
     /// A list of space separated pages or --every ith page
     Delete {
         #[clap(required = true, parse(from_os_str))]
