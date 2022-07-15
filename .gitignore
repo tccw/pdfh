@@ -1,0 +1,11 @@
+# build
+/target
+
+# macOS junk
+**/.DS_Store
+
+# text editor stuff
+.vscode
+
+# testing files
+test-data/
