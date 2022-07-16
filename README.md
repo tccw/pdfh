@@ -21,6 +21,6 @@ SUBCOMMANDS:
 ```
 
 ## The Name
-While writing and picking a name for this tool, I discovered both [QPDF](https://github.com/qpdf/qpdf) and [PDFtk ("tool kit") Server](https://www.pdflabs.com/tools/pdftk-server/), both of which offer many more than this project. This project is definitely not a tool kit, but maybe it's a single tool: a hammer. It's not always the perfect tool for the job, but if you only need something simple to then a hammer might do.
+While writing and picking a name for this tool, I discovered both [QPDF](https://github.com/qpdf/qpdf) and [PDFtk ("tool kit") Server](https://www.pdflabs.com/tools/pdftk-server/), both of which offer many more features. This project is definitely not a tool kit, but maybe it's a single tool: a hammer. It's not always the perfect tool for the job, but if you only need something simple to then a hammer might do.
 
 ## Installation Instructions
