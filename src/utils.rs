@@ -1,8 +1,5 @@
-use std::{collections::{HashSet}, path::{PathBuf}};
-
-use lopdf::{Document, Error};
-
-const VERSION: &str = "1.5";
+use std::{collections::{HashSet}, path::{PathBuf}, fmt::Error};
+use lopdf::{Document};
 
 /// Deletes the pages listed in --pages, or deletes every --every page in a PDF
 /// 
@@ -14,11 +11,11 @@ const VERSION: &str = "1.5";
 /// * `compress` - a boolean flag to compress the outfile before saving
 /// 
 pub fn delete(infile: PathBuf, 
-              outfile: Option<PathBuf>, 
-              pages: Option<Vec<u32>>,
-              every: Option<u32>,
-              negate: bool,
-              compress: bool) {
+    outfile: Option<PathBuf>, 
+    pages: Option<Vec<u32>>,
+    every: Option<u32>,
+    negate: bool,
+    compress: bool) {
 
     let mut doc: Document = load_pdf(&infile);
 
@@ -26,13 +23,24 @@ pub fn delete(infile: PathBuf,
 
     if compress { doc.compress() }
 
-        match outfile {
-            Some(f) => {
-            doc.save(f).unwrap();
+    let mut result = None;
+    match outfile {
+        Some(f) => {
+            result = Some(doc.save(f));
+        }
+        None => {
+            result = Some(doc.save(infile));
+        }
+    }
+
+    match result {
+        Some(res) => {
+            match res {
+                Ok(_) => {}// do nothing
+                Err(error) => {panic!("Failed to write out file: {}", error)}
             }
-            None => {
-            doc.save(infile).unwrap();
-            }
+        }
+        None => { panic!("Failed to write out file") }
     }
 }
 
@@ -91,10 +99,10 @@ fn make_delete_every_page_numbers(every: u32, doc: &mut Document, negate: bool) 
         for (page_num, _) in doc.get_pages() {
             if page_num % every == 0 { pages.push(page_num); }
         }
-    } else {
-        for (page_num, _) in doc.get_pages() {
-            if page_num % every != 0 { pages.push(page_num); }
-        } 
+        } else {
+            for (page_num, _) in doc.get_pages() {
+                if page_num % every != 0 { pages.push(page_num); }
+            } 
     }
     return pages;
 }

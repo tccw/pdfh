@@ -2,7 +2,8 @@ extern crate lopdf;
 
 use clap::{Parser, Subcommand, ArgGroup};
 
-mod cmd_utils;
+pub mod utils;
+
 
 const DEG_MULTIPLE: u16 = 90;
 
@@ -157,8 +158,8 @@ fn main() {
                            every, 
                            negate,
                            compress } => {
-                            
-            cmd_utils::delete(infile, outfile, pages, every, negate, compress);
+
+            utils::delete(infile, outfile, pages, every, negate, compress);
         },
         Commands::Reverse { infile, outfile } => {
             // TODO
