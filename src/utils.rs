@@ -1,5 +1,5 @@
-use std::{collections::{HashSet}, path::{PathBuf}, fmt::Error};
-use lopdf::{Document};
+use std::{collections::{HashSet}, path::{PathBuf}};
+use lopdf::{Document, Object};
 
 /// Deletes the pages listed in --pages, or deletes every --every page in a PDF
 /// 
@@ -41,6 +41,24 @@ pub fn delete(infile: PathBuf,
             }
         }
         None => { panic!("Failed to write out file") }
+    }
+}
+
+/// Reverses the page order of a document either inplace or in a new file
+/// 
+/// * `infile` - a PathBuf of the file to reverse
+/// * `outfile` - a PathBuf representing the location to save the output file to (Optional)
+/// 
+pub fn reverse(infile: PathBuf, outfile: Option<PathBuf>) {
+    let mut doc = load_pdf(&infile);
+
+    match outfile {
+        Some(of) => {
+            reverse_doc(&mut doc, of, false);
+        }
+        None => {
+            reverse_doc(&mut doc, infile, true);
+        }
     }
 }
 
@@ -105,4 +123,42 @@ fn make_delete_every_page_numbers(every: u32, doc: &mut Document, negate: bool) 
             } 
     }
     pages
+}
+
+fn reverse_doc(doc: &mut Document, filepath: PathBuf, inplace: bool) {
+    // Try getting the Kids reference table from Pages and reversing the vector of references
+
+    for (object_id, object) in doc.objects.iter() {
+        match object.type_name().unwrap_or("") {
+            "Pages" => {
+                if let Ok(dict) = object.as_dict() {
+                    let mut dict = dict.clone();
+                    let kids_refs = dict.get(b"Kids");
+                    match kids_refs {
+                        Ok(ref_arr) => {
+                            // get the Pages object, pull the Kids and reverse the array of page references
+                            // then replace the entire Pages object using the original object_id, and break out of the loop
+                            // as this is all we need to do.
+                            let mut arr = ref_arr.as_array().unwrap().clone();
+                            arr.reverse();
+                            dict.set("Kids", Object::Array(arr));
+
+                            if inplace {
+                                doc.objects.insert(*object_id, Object::Dictionary(dict));
+                                doc.save(filepath);
+                            } else {
+                                let mut outdoc = doc.clone();
+                                outdoc.objects.insert(*object_id, Object::Dictionary(dict));
+                                outdoc.save(filepath);
+                            }
+
+                            break;
+                        }
+                        Err(error) => { println!("{}", error); } // TODO: temp, will leak impl details
+                    }
+                }
+            }
+            _ => {} // do nothing for any other object type
+        }
+    }
 }
