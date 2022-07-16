@@ -87,9 +87,9 @@ fn make_delete_pages_page_numbers(pages: Vec<u32>, doc: &mut Document, negate: b
         for p in pages {
             pages_set.remove(&p);
         }
-        return pages_set.into_iter().collect::<Vec<_>>();
+        pages_set.into_iter().collect::<Vec<_>>()
     } else {
-        return pages;
+        pages
     }
 }
 
@@ -104,5 +104,5 @@ fn make_delete_every_page_numbers(every: u32, doc: &mut Document, negate: bool) 
                 if page_num % every != 0 { pages.push(page_num); }
             } 
     }
-    return pages;
+    pages
 }
