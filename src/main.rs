@@ -162,8 +162,7 @@ fn main() {
             utils::delete(infile, outfile, pages, every, negate, compress);
         },
         Commands::Reverse { infile, outfile } => {
-            // TODO
-            println!("Not Implemented");
+            utils::reverse(infile, outfile);
         },
         Commands::Extract { infile, 
                             outfile, 

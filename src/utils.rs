@@ -1,5 +1,5 @@
-use std::{collections::{HashSet}, path::{PathBuf}, fmt::Error};
-use lopdf::{Document};
+use std::{collections::{HashSet}, path::{PathBuf}};
+use lopdf::{Document, Object};
 
 /// Deletes the pages listed in --pages, or deletes every --every page in a PDF
 /// 
@@ -22,25 +22,42 @@ pub fn delete(infile: PathBuf,
     delete_pages(&mut doc, pages, every, negate);
 
     if compress { doc.compress() }
-
-    let mut result = None;
+    
     match outfile {
         Some(f) => {
-            result = Some(doc.save(f));
+            save_pdf(&mut doc, f);
         }
         None => {
-            result = Some(doc.save(infile));
+            save_pdf(&mut doc, infile);
         }
     }
 
+    // save_pdf(outfile, &mut doc, infile);
+}
+
+fn save_pdf(doc: &mut Document, filepath: PathBuf) {
+    let result = doc.save(filepath);
     match result {
-        Some(res) => {
-            match res {
-                Ok(_) => {}// do nothing
-                Err(error) => {panic!("Failed to write out file: {}", error)}
-            }
+        Ok(_) => {}// do nothing
+        Err(error) => {panic!("Failed to write out file: {}", error)}
+    }
+}
+
+/// Reverses the page order of a document either inplace or in a new file
+/// 
+/// * `infile` - a PathBuf of the file to reverse
+/// * `outfile` - a PathBuf representing the location to save the output file to (Optional)
+/// 
+pub fn reverse(infile: PathBuf, outfile: Option<PathBuf>) {
+    let mut doc = load_pdf(&infile);
+
+    match outfile {
+        Some(of) => {
+            reverse_doc(&mut doc.clone(), of);
         }
-        None => { panic!("Failed to write out file") }
+        None => {
+            reverse_doc(&mut doc, infile);
+        }
     }
 }
 
@@ -105,4 +122,38 @@ fn make_delete_every_page_numbers(every: u32, doc: &mut Document, negate: bool) 
             } 
     }
     pages
+}
+
+fn reverse_doc(doc: &mut Document, filepath: PathBuf) {
+    // Try getting the Kids reference table from Pages and reversing the vector of references
+    // do this for all Pages objects as there may be more than one in the 
+
+    // inefficient to scan every object in the document when we are only looking for Pages
+    for (object_id, object) in doc.clone().objects.iter() { // TODO: fix wasteful clone
+        match object.type_name().unwrap_or("") {
+            "Pages" => {
+                if let Ok(dict) = object.as_dict() {
+                    let mut dict = dict.clone();
+                    let kids_refs = dict.get(b"Kids");
+                    match kids_refs {
+                        Ok(ref_arr) => {
+                            // get the Pages object, pull the Kids and reverse the array of page references
+                            // then replace the entire Pages object using the original object_id
+                            let mut arr = ref_arr.as_array().unwrap().clone();
+                            println!("{:?}", arr);
+                            arr.reverse();
+                            println!("{:?}", arr);
+                            dict.set("Kids", Object::Array(arr));
+
+                            doc.objects.insert(*object_id, Object::Dictionary(dict));
+                        }
+                        Err(error) => { println!("{}", error); } // TODO: temp, will leak impl details
+                    }
+                }
+            }
+            _ => {} // do nothing for all other object types
+        }
+    }
+
+    save_pdf(doc, filepath);
 }
