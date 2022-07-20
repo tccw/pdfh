@@ -31,17 +31,25 @@ pub fn delete(infile: PathBuf,
             save_pdf(&mut doc, infile);
         }
     }
-
-    // save_pdf(outfile, &mut doc, infile);
 }
 
-fn save_pdf(doc: &mut Document, filepath: PathBuf) {
-    let result = doc.save(filepath);
-    match result {
-        Ok(_) => {}// do nothing
-        Err(error) => {panic!("Failed to write out file: {}", error)}
-    }
+/// Extracts the pages listed in --pages, or every --every page in a PDF
+/// 
+/// * `infile` - a PathBuf of a single file
+/// * `outfile` - a PathBuf representing the location to save the output file to
+/// * `pages` - a list of page numbers to delete
+/// * `every` - an integer 
+/// * `negate` - negates/inverts the --page or --every selection, instead keeping only those pages listed
+/// 
+pub fn extract(infile: PathBuf, outfile: PathBuf, pages: Option<Vec<u32>>, every: Option<u32>) {
+    let mut doc = Document::load(&infile).expect("failed to open PDF");
+
+    extract_pages(&mut doc, pages, every);
+
+    save_pdf(&mut doc, outfile);
 }
+
+
 
 /// Reverses the page order of a document either inplace or in a new file
 /// 
@@ -74,6 +82,21 @@ fn load_pdf(filepath: &PathBuf) -> Document {
     doc    
 }
 
+fn save_pdf(doc: &mut Document, filepath: PathBuf) {
+    doc.prune_objects();
+    doc.adjust_zero_pages();
+    doc.build_outline();
+    doc.delete_zero_length_streams();
+
+    if doc.get_pages().len() == 0 { panic!("Resulting document would have no pages."); }
+
+    let result = doc.save(filepath);
+    match result {
+        Ok(_) => {}// do nothing
+        Err(error) => {panic!("Failed to write out file: {}", error)}
+    }
+}
+
 fn delete_pages(doc: &mut Document, pages: Option<Vec<u32>>, every: Option<u32>, negate: bool) {
     match pages {
         Some(p) => {
@@ -96,13 +119,33 @@ fn delete_pages(doc: &mut Document, pages: Option<Vec<u32>>, every: Option<u32>,
     }
 }
 
+fn extract_pages(doc: &mut Document, pages: Option<Vec<u32>>, every: Option<u32>) {
+    match pages {
+        Some(p) => {
+            let page_numbers = &make_delete_pages_page_numbers(p, doc, true);
+            doc.delete_pages(page_numbers);
+        }
+        None => {
+            match every {
+                Some(e) => {
+                    let page_numbers = &make_delete_every_page_numbers(e, doc, true);
+                    doc.delete_pages(page_numbers);
+                }
+                None => {
+                    panic!("--every is not a valid integer");
+                }
+            }
+        }
+    }
+}
+
 fn make_delete_pages_page_numbers(pages: Vec<u32>, doc: &mut Document, negate: bool) -> Vec<u32> {
     if negate {
         let mut pages_set: HashSet<u32> = HashSet::new();
         // problematic only if usize is 64bits and len() is above u32::MAX
         pages_set.extend(1..=doc.get_pages().len() as u32); 
-        for p in pages {
-            pages_set.remove(&p);
+        for p in pages.iter() {
+            pages_set.remove(p);
         }
         pages_set.into_iter().collect::<Vec<_>>()
     } else {
@@ -114,11 +157,11 @@ fn make_delete_every_page_numbers(every: u32, doc: &mut Document, negate: bool) 
     let mut pages: Vec<u32> = Vec::new();
     if negate {
         for (page_num, _) in doc.get_pages() {
-            if page_num % every == 0 { pages.push(page_num); }
+            if page_num % every != 0 { pages.push(page_num); }
         }
         } else {
             for (page_num, _) in doc.get_pages() {
-                if page_num % every != 0 { pages.push(page_num); }
+                if page_num % every == 0 { pages.push(page_num); }
             } 
     }
     pages

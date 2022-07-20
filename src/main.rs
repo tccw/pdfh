@@ -168,8 +168,7 @@ fn main() {
                             outfile, 
                             pages, 
                             every } => {
-            // TODO
-            println!("Not Implemented");
+            utils::extract(infile, outfile, pages, every);
         }
     }    
 }
