@@ -1,7 +1,7 @@
 #[cfg(test)]
 
 mod tests {
-    use std::path::PathBuf;
+    use std::{path::PathBuf, os::unix::prelude::FileTypeExt};
 
     use pdfh::utils;
     use ::function_name::named;
@@ -109,6 +109,29 @@ mod tests {
     // Visual inspection is required of the output of these tests
     #[test]
     #[named]
+    fn delete_pages_valid_list() {
+        let test_resource: TestResources = TestResources::new();
+
+        let every = None;
+        let pages = Some(vec![1,3]);
+        let outfile = Some(build_outfile_pathbuf(function_name!()));
+
+        utils::delete(test_resource.multi_page_single_page_obj, outfile, pages, every, false, false)
+    }
+
+    #[test]
+    #[named]
+    fn delete_every_valid() {
+        let test_resource: TestResources = TestResources::new();
+
+        let outfile = Some(build_outfile_pathbuf(function_name!()));
+        let every = Some(25);
+        let pages = None;
+        utils::delete(test_resource.multi_page_single_page_obj, outfile, pages, every, false, false)
+    }
+
+    #[test]
+    #[named]
     fn reverse_doc_with_intermediate_pages_objects() {
         let test_resource: TestResources = TestResources::new();
 
@@ -132,5 +155,41 @@ mod tests {
 
         let outfile = Some(build_outfile_pathbuf(function_name!()));
         utils::reverse(test_resource.single_page, outfile);
+    }
+
+    // Extract
+
+    #[test]
+    #[named]
+    fn extract_pages_list_valid() {
+        let test_resource: TestResources = TestResources::new();
+
+        let outfile = build_outfile_pathbuf(function_name!());
+        let every = None;
+        let pages = Some(vec![2,3,5]);
+        utils::extract(test_resource.multi_page_single_page_obj, outfile, pages, every);
+    }
+
+    #[test]
+    #[named]
+    fn extract_every_valid() {
+        let test_resource: TestResources = TestResources::new();
+
+        let outfile = build_outfile_pathbuf(function_name!());
+        let every = Some(25);
+        let pages = None;
+        utils::extract(test_resource.multi_page_multiple_pages_obj, outfile, pages, every);
+    }
+
+    #[test]
+    #[named]
+    #[should_panic(expected = "Resulting document would have no pages.")]
+    fn extract_single_page_document_page_out_of_bounds() {
+        let test_resource: TestResources = TestResources::new();
+
+        let outfile = build_outfile_pathbuf(function_name!());
+        let every = None;
+        let pages = Some(vec![2,3]);
+        utils::extract(test_resource.single_page, outfile, pages, every);
     }
 }
