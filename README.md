@@ -24,3 +24,7 @@ SUBCOMMANDS:
 While writing and picking a name for this tool, I discovered both [QPDF](https://github.com/qpdf/qpdf) and [PDFtk ("tool kit") Server](https://www.pdflabs.com/tools/pdftk-server/), both of which offer many more features. This project is definitely not a tool kit, but maybe it's a single tool: a hammer. It's not always the perfect tool for the job, but if you only need something simple to then a hammer might do.
 
 ## Installation Instructions
+
+## Helpful Resources for Understanding PDF Structure
+1. [PDF Explained by John Whitington](https://www.oreilly.com/library/view/pdf-explained/9781449321581/ch04.html)
+2. [PDF 32000-1:2008, The PDF Specification](https://opensource.adobe.com/dc-acrobat-sdk-docs/standards/pdfstandards/pdf/PDF32000_2008.pdf)
