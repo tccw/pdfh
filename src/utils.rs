@@ -1,5 +1,5 @@
-use std::{collections::{HashSet}, path::{PathBuf}};
-use lopdf::{Document, Object};
+use std::{collections::{HashSet, BTreeMap}, path::{PathBuf}};
+use lopdf::{Document, Object, ObjectId};
 
 /// Deletes the pages listed in --pages, or deletes every --every page in a PDF
 /// 
@@ -69,6 +69,28 @@ pub fn reverse(infile: PathBuf, outfile: Option<PathBuf>) {
     }
 }
 
+/// Rotates all pages by the input degree amount. 
+/// 
+/// * `infile` - a PathBuf of the file to reverse
+/// * `outfile` - a PathBuf representing the location to save the output file to (Optional)
+/// 
+pub fn rotate(infile: PathBuf, 
+              outfile: Option<PathBuf>, 
+              degrees: i32, 
+              pages: Option<Vec<u32>>, 
+              every: Option<u32>) {
+    let mut doc = load_pdf(&infile);
+
+    match outfile {
+        Some(of) => {
+            rotate_doc(&mut doc.clone(), of, degrees, pages, every);
+        }
+        None => {
+            rotate_doc(&mut doc, infile, degrees, pages, every);
+        }
+    }
+}
+
 
 // ------- Helpers -------
 
@@ -100,7 +122,7 @@ fn save_pdf(doc: &mut Document, filepath: PathBuf) {
 fn delete_pages(doc: &mut Document, pages: Option<Vec<u32>>, every: Option<u32>, negate: bool) {
     match pages {
         Some(p) => {
-            let page_numbers: &[u32] = &make_delete_pages_page_numbers(p, doc, negate);
+            let page_numbers: &[u32] = &make_pages_page_numbers(p, doc, negate);
             doc.delete_pages(page_numbers); // silently fails for pages outside the actual page range    
         }
         None => {
@@ -108,7 +130,7 @@ fn delete_pages(doc: &mut Document, pages: Option<Vec<u32>>, every: Option<u32>,
             // TODO: see if there is a way to not check match again b/c clap will make sure that if pages is None, then every is something.
             match every {
                 Some(e) => {
-                    let page_numbers: &[u32] = &make_delete_every_page_numbers(e, doc, negate);
+                    let page_numbers: &[u32] = &make_every_page_numbers(e, doc, negate);
                     doc.delete_pages(page_numbers);
                 }
                 None => {
@@ -122,13 +144,13 @@ fn delete_pages(doc: &mut Document, pages: Option<Vec<u32>>, every: Option<u32>,
 fn extract_pages(doc: &mut Document, pages: Option<Vec<u32>>, every: Option<u32>) {
     match pages {
         Some(p) => {
-            let page_numbers = &make_delete_pages_page_numbers(p, doc, true);
+            let page_numbers = &make_pages_page_numbers(p, doc, true);
             doc.delete_pages(page_numbers);
         }
         None => {
             match every {
                 Some(e) => {
-                    let page_numbers = &make_delete_every_page_numbers(e, doc, true);
+                    let page_numbers = &make_every_page_numbers(e, doc, true);
                     doc.delete_pages(page_numbers);
                 }
                 None => {
@@ -139,7 +161,7 @@ fn extract_pages(doc: &mut Document, pages: Option<Vec<u32>>, every: Option<u32>
     }
 }
 
-fn make_delete_pages_page_numbers(pages: Vec<u32>, doc: &mut Document, negate: bool) -> Vec<u32> {
+fn make_pages_page_numbers(pages: Vec<u32>, doc: &mut Document, negate: bool) -> Vec<u32> {
     if negate {
         let mut pages_set: HashSet<u32> = HashSet::new();
         // problematic only if usize is 64bits and len() is above u32::MAX
@@ -153,7 +175,7 @@ fn make_delete_pages_page_numbers(pages: Vec<u32>, doc: &mut Document, negate: b
     }
 }
 
-fn make_delete_every_page_numbers(every: u32, doc: &mut Document, negate: bool) -> Vec<u32> {
+fn make_every_page_numbers(every: u32, doc: &mut Document, negate: bool) -> Vec<u32> {
     let mut pages: Vec<u32> = Vec::new();
     if negate {
         for (page_num, _) in doc.get_pages() {
@@ -199,4 +221,60 @@ fn reverse_doc(doc: &mut Document, filepath: PathBuf) {
     }
 
     save_pdf(doc, filepath);
+}
+
+fn rotate_doc(doc: &mut Document, filepath: PathBuf, degrees: i32, pages: Option<Vec<u32>>, every: Option<u32>) {
+    match pages {
+        Some(p) => {
+            let page_numbers = &make_pages_page_numbers(p, doc, false);
+            rotate_select_pages(doc, page_numbers, degrees);
+        }
+        None => {
+            match every {
+                Some(e) => {
+                    let page_numbers = &make_every_page_numbers(e, doc, false);
+                    rotate_select_pages(doc, page_numbers, degrees);
+                }
+                None => {
+                    rotate_all_pages(doc, degrees);
+                }
+            }
+        }
+    }
+
+    save_pdf(doc, filepath);
+}
+
+fn rotate_select_pages(doc: &mut Document, page_numbers: &Vec<u32>, degrees: i32) {
+    let pages: BTreeMap<u32, ObjectId> = doc.get_pages();
+
+    for p in page_numbers {
+        let object_id = pages.get(p);
+        match object_id {
+            Some(id) => {
+                if let Ok(page) = doc.get_object(*id) {
+                    if let Ok(dict) = page.as_dict() {
+                        let mut dict = dict.clone();
+                        
+                        dict.set("Rotate", degrees);
+                        doc.objects.insert(*id, Object::Dictionary(dict));
+                    }
+                }
+            }
+            None => {} // do nothing, but TODO: consider accumulating missed pages to output to user
+        }
+    }
+}
+
+fn rotate_all_pages(doc: &mut Document, degrees: i32) {
+    for (_, object_id) in doc.get_pages() {
+        if let Ok(page) = doc.get_object(object_id) {
+            if let Ok(dict) = page.as_dict() {
+                let mut dict = dict.clone();
+                
+                dict.set("Rotate", degrees);
+                doc.objects.insert(object_id, Object::Dictionary(dict));
+            }
+        }
+    }
 }

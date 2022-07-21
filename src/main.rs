@@ -5,7 +5,7 @@ use clap::{Parser, Subcommand, ArgGroup};
 pub mod utils;
 
 
-const DEG_MULTIPLE: u16 = 90;
+const DEG_MULTIPLE: i32 = 90;
 
 #[derive(Parser, Debug)]
 #[clap(name = "tpdf")]
@@ -53,21 +53,26 @@ enum Commands {
         compress: bool
     },
     #[clap(arg_required_else_help = false)]
+    #[clap(group(
+        ArgGroup::new("rot")
+            .required(false)
+            .args(&["pages", "every"])
+        ))]
     /// Rotate an entire document, or select pages
     Rotate {
         #[clap(required = true, parse(from_os_str))]
         infile: std::path::PathBuf,
         /// Modified inplace if not provided
         #[clap(required = false, parse(from_os_str))]
-        outfile: std::path::PathBuf,
+        outfile: Option<std::path::PathBuf>,
         #[clap(required=true, value_parser = degree_in_range, short, long)]
         /// Positive values are CW, negative are CCW rotation. Multipules of 90.
-        degrees: u16,
-        #[clap(required=false, short, long)]
+        degrees: i32,
+        #[clap(group = "rot", short, long, multiple=true, value_parser)]
         /// List of space separated page numbers. All pages if not provided.
-        pages: Vec<u16>,
-        #[clap(short, long)]
-        compress: bool
+        pages: Option<Vec<u32>>,
+        #[clap(group = "rot", short, long, value_parser)]
+        every: Option<u32>
     },
     #[clap(arg_required_else_help = false)]
     #[clap(group(
@@ -148,9 +153,8 @@ fn main() {
                            outfile, 
                            degrees, 
                            pages,
-                           compress } => {
-            // TODO
-            println!("Not Implemented");
+                           every } => {
+            utils::rotate(infile, outfile, degrees, pages, every);
         },
         Commands::Delete { infile, 
                            outfile, 
@@ -174,8 +178,8 @@ fn main() {
 }
 
 
-fn degree_in_range(s: &str) -> Result<u16, String> {
-    let degree: u16 = s
+fn degree_in_range(s: &str) -> Result<i32, String> {
+    let degree: i32 = s
         .parse()
         .map_err(|_| format!("`{}` is not an integer", s))?;
     if degree % DEG_MULTIPLE == 0 {
