@@ -145,8 +145,7 @@ fn main() {
             println!("Not Implemented");
         }
         Commands::Dupe { infile, outfile, num, compress} => {
-            // TODO
-            println!("Not Implemented");
+            utils::dupe(infile, outfile, num, compress);
         }
         Commands::Rotate { infile,
                            outfile, 

@@ -37,6 +37,39 @@ pub fn merge(infiles: &Vec<PathBuf>, outfile: PathBuf, compress: bool) {
     save_pdf(&mut document, outfile);
 }
 
+/// Creates a single PDF containing num copies of the input PDF
+/// 
+/// # Arguments
+/// 
+/// * `infile` - a PathBuf of a single file
+/// * `outfile` - a PathBuf representing the location to save the output file to
+/// * `num` - a u16 integer representing the number of times to duplicate the infile
+/// * `compress` - a boolean flag to compress the outfile before saving
+/// 
+pub fn dupe(infile: PathBuf, outfile: PathBuf, num: u16, compress: bool) {
+    let doc: Document = Document::load(infile).unwrap();
+    let mut documents: Vec<Document> = Vec::new();
+    let mut outdoc = Document::with_version(VERSION);
+
+    for _ in 0..num {
+        documents.push(doc.clone());
+    }
+
+    merge_documents(documents, &mut outdoc);
+
+    if compress { outdoc.compress(); }
+    
+    // Save the merged PDF
+    save_pdf(&mut outdoc, outfile)
+    // call merge but refactor merge to call a helper that operates on Document 
+    // data types, rather than accepting a list of PathBuf
+
+    // this adds a large memory overhead as we keep many copies of the same file 
+    // rather than reusing a single in-memory copy of the file
+    // this would have at least double the memory usage of a rused copy in the final merge
+
+}
+
 /// Deletes the pages listed in --pages, or deletes every --every page in a PDF
 /// 
 /// * `infile` - a PathBuf of a single file
