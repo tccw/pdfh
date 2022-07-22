@@ -138,8 +138,7 @@ fn main() {
 
     match args.command {
         Commands::Merge { mut infiles, outfile, compress } => {
-            // TODO
-            println!("Not Implemented");
+            utils::merge(&infiles, outfile, compress)
         }
         Commands::Split { infile, outfile, compress} => {
             // TODO
