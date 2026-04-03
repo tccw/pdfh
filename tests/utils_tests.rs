@@ -1,8 +1,9 @@
 #[cfg(test)]
 
 mod tests {
-    use std::{path::PathBuf, os::unix::prelude::FileTypeExt};
+    use std::path::PathBuf;
 
+    use lopdf::Document;
     use pdfh::utils;
     use ::function_name::named;
 
@@ -17,6 +18,19 @@ mod tests {
         PathBuf::from(format!("{}/output/{}.pdf", DATA_DIR, filename))
     }
 
+    fn split_output_for_page(base: &PathBuf, page: u32) -> PathBuf {
+        let parent = base.parent().unwrap_or(std::path::Path::new(""));
+        let stem = base
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("outfile");
+
+        match base.extension().and_then(|e| e.to_str()) {
+            Some(ext) => parent.join(format!("{}_{}.{}", stem, page, ext)),
+            None => parent.join(format!("{}_{}.pdf", stem, page)),
+        }
+    }
+
     // https://www.reddit.com/r/rust/comments/9hqi44/what_is_the_status_of_improved_testing_in_rust/
     struct TestResources {
         single_page: PathBuf,
@@ -28,7 +42,7 @@ mod tests {
         outfile_valid: PathBuf,
         outfile_cannot_write: PathBuf
     }
-    
+
     impl TestResources {
         fn new() -> TestResources {
             TestResources {
@@ -191,5 +205,68 @@ mod tests {
         let every = None;
         let pages = Some(vec![2,3]);
         utils::extract(test_resource.single_page, outfile, pages, every);
+    }
+
+    #[test]
+    #[named]
+    fn split_two_pages_creates_two_files() {
+        let test_resource: TestResources = TestResources::new();
+        let base_outfile = build_outfile_pathbuf(function_name!());
+
+        utils::split(test_resource.two_pages, base_outfile.clone(), false);
+
+        let out1 = split_output_for_page(&base_outfile, 1);
+        let out2 = split_output_for_page(&base_outfile, 2);
+
+        assert!(out1.exists());
+        assert!(out2.exists());
+
+        let doc1 = Document::load(&out1).unwrap();
+        let doc2 = Document::load(&out2).unwrap();
+
+        assert_eq!(doc1.get_pages().len(), 1);
+        assert_eq!(doc2.get_pages().len(), 1);
+    }
+
+    #[test]
+    #[named]
+    fn split_multi_page_with_intermediate_pages_objects() {
+        let test_resource: TestResources = TestResources::new();
+        let base_outfile = build_outfile_pathbuf(function_name!());
+
+        let source = Document::load(&test_resource.multi_page_multiple_pages_obj).unwrap();
+        let page_count = source.get_pages().len() as u32;
+
+        utils::split(test_resource.multi_page_multiple_pages_obj, base_outfile.clone(), false);
+
+        for page in 1..=page_count {
+            let out = split_output_for_page(&base_outfile, page);
+            assert!(out.exists());
+            let doc = Document::load(&out).unwrap();
+            assert_eq!(doc.get_pages().len(), 1);
+        }
+    }
+
+    #[test]
+    #[named]
+    fn split_single_page_creates_one_file() {
+        let test_resource: TestResources = TestResources::new();
+        let base_outfile = build_outfile_pathbuf(function_name!());
+
+        utils::split(test_resource.single_page, base_outfile.clone(), true);
+
+        let out = split_output_for_page(&base_outfile, 1);
+        assert!(out.exists());
+        let doc = Document::load(&out).unwrap();
+        assert_eq!(doc.get_pages().len(), 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "Failed to load document: \n Invalid file header")]
+    fn split_invalid_pdf_panics() {
+        let test_resource: TestResources = TestResources::new();
+        let base_outfile = build_outfile_pathbuf("split_invalid_pdf_panics");
+
+        utils::split(test_resource.file_bad_header, base_outfile, false);
     }
 }

@@ -80,7 +80,7 @@ enum Commands {
             .required(false)
             .args(&["pages", "every"])
         ))]
-    /// Delete pages from a PDF. 
+    /// Delete pages from a PDF.
     /// A list of space separated pages or --every ith page
     Delete {
         #[clap(required = true, parse(from_os_str))]
@@ -95,7 +95,7 @@ enum Commands {
         /// Delete every ith page
         every: Option<u32>,
         #[clap(required=false, long)]
-        /// Negates the deletion operation, i.e. keep only the listed pages. 
+        /// Negates the deletion operation, i.e. keep only the listed pages.
         /// Used with --every, it will keep every ith page rather than delete it.
         negate: bool,
         #[clap(short, long)]
@@ -137,27 +137,26 @@ fn main() {
     let args = Cli::parse();
 
     match args.command {
-        Commands::Merge { mut infiles, outfile, compress } => {
+        Commands::Merge { infiles, outfile, compress } => {
             utils::merge(&infiles, outfile, compress)
         }
         Commands::Split { infile, outfile, compress} => {
-            // TODO
-            println!("Not Implemented");
+            utils::split(infile, outfile, compress);
         }
         Commands::Dupe { infile, outfile, num, compress} => {
             utils::dupe(infile, outfile, num, compress);
         }
         Commands::Rotate { infile,
-                           outfile, 
-                           degrees, 
+                           outfile,
+                           degrees,
                            pages,
                            every } => {
             utils::rotate(infile, outfile, degrees, pages, every);
         },
-        Commands::Delete { infile, 
-                           outfile, 
-                           pages, 
-                           every, 
+        Commands::Delete { infile,
+                           outfile,
+                           pages,
+                           every,
                            negate,
                            compress } => {
 
@@ -166,13 +165,13 @@ fn main() {
         Commands::Reverse { infile, outfile } => {
             utils::reverse(infile, outfile);
         },
-        Commands::Extract { infile, 
-                            outfile, 
-                            pages, 
+        Commands::Extract { infile,
+                            outfile,
+                            pages,
                             every } => {
             utils::extract(infile, outfile, pages, every);
         }
-    }    
+    }
 }
 
 

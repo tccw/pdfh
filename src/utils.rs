@@ -8,13 +8,13 @@ use lopdf::{Document, Object, ObjectId};
 const VERSION: &str = "1.5";
 
 /// Creates a silgle PDF containing all passed infiles, or all PDFs in passed directories
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `infiles` - a vector of PathBuf which could include directories or files
 /// * `outfile` - a PathBuf representing the location to save the merged file to
 /// * `compress` - a boolean flag to compress the outfile file before saving
-/// 
+///
 pub fn merge(infiles: &Vec<PathBuf>, outfile: PathBuf, compress: bool) {
     // make vector of Document data structures
     let mut documents: Vec<Document> = Vec::new();
@@ -38,14 +38,14 @@ pub fn merge(infiles: &Vec<PathBuf>, outfile: PathBuf, compress: bool) {
 }
 
 /// Creates a single PDF containing num copies of the input PDF
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `infile` - a PathBuf of a single file
 /// * `outfile` - a PathBuf representing the location to save the output file to
 /// * `num` - a u16 integer representing the number of times to duplicate the infile
 /// * `compress` - a boolean flag to compress the outfile before saving
-/// 
+///
 pub fn dupe(infile: PathBuf, outfile: PathBuf, num: u16, compress: bool) {
     let doc: Document = Document::load(infile).unwrap();
     let mut documents: Vec<Document> = Vec::new();
@@ -58,29 +58,29 @@ pub fn dupe(infile: PathBuf, outfile: PathBuf, num: u16, compress: bool) {
     merge_documents(documents, &mut outdoc);
 
     if compress { outdoc.compress(); }
-    
+
     // Save the merged PDF
     save_pdf(&mut outdoc, outfile)
-    // call merge but refactor merge to call a helper that operates on Document 
+    // call merge but refactor merge to call a helper that operates on Document
     // data types, rather than accepting a list of PathBuf
 
-    // this adds a large memory overhead as we keep many copies of the same file 
+    // this adds a large memory overhead as we keep many copies of the same file
     // rather than reusing a single in-memory copy of the file
     // this would have at least double the memory usage of a rused copy in the final merge
 
 }
 
 /// Deletes the pages listed in --pages, or deletes every --every page in a PDF
-/// 
+///
 /// * `infile` - a PathBuf of a single file
 /// * `outfile` - a PathBuf representing the location to save the output file to
 /// * `pages` - a list of page numbers to delete
-/// * `every` - an integer 
+/// * `every` - an integer
 /// * `negate` - negates/inverts the --page or --every selection, instead keeping only those pages listed
 /// * `compress` - a boolean flag to compress the outfile before saving
-/// 
-pub fn delete(infile: PathBuf, 
-    outfile: Option<PathBuf>, 
+///
+pub fn delete(infile: PathBuf,
+    outfile: Option<PathBuf>,
     pages: Option<Vec<u32>>,
     every: Option<u32>,
     negate: bool,
@@ -91,7 +91,7 @@ pub fn delete(infile: PathBuf,
     delete_pages(&mut doc, pages, every, negate);
 
     if compress { doc.compress() }
-    
+
     match outfile {
         Some(f) => {
             save_pdf(&mut doc, f);
@@ -103,13 +103,13 @@ pub fn delete(infile: PathBuf,
 }
 
 /// Extracts the pages listed in --pages, or every --every page in a PDF
-/// 
+///
 /// * `infile` - a PathBuf of a single file
 /// * `outfile` - a PathBuf representing the location to save the output file to
 /// * `pages` - a list of page numbers to delete
-/// * `every` - an integer 
+/// * `every` - an integer
 /// * `negate` - negates/inverts the --page or --every selection, instead keeping only those pages listed
-/// 
+///
 pub fn extract(infile: PathBuf, outfile: PathBuf, pages: Option<Vec<u32>>, every: Option<u32>) {
     let mut doc = Document::load(&infile).expect("failed to open PDF");
 
@@ -118,13 +118,33 @@ pub fn extract(infile: PathBuf, outfile: PathBuf, pages: Option<Vec<u32>>, every
     save_pdf(&mut doc, outfile);
 }
 
+/// Splits a PDF into one file per page
+///
+/// * `infile` - a PathBuf of the file to split
+/// * `outfile` - base output filepath; page number is appended before extension
+/// * `compress` - compress each output file before saving
+pub fn split(infile: PathBuf, outfile: PathBuf, compress: bool) {
+    let doc = load_pdf(&infile);
+    let pages: Vec<u32> = doc.get_pages().keys().cloned().collect();
+
+    for page_num in pages {
+        let mut page_doc = doc.clone();
+        delete_pages(&mut page_doc, Some(vec![page_num]), None, true);
+
+        if compress { page_doc.compress(); }
+
+        let page_outfile = split_outfile_for_page(&outfile, page_num);
+        save_pdf(&mut page_doc, page_outfile);
+    }
+}
+
 
 
 /// Reverses the page order of a document either inplace or in a new file
-/// 
+///
 /// * `infile` - a PathBuf of the file to reverse
 /// * `outfile` - a PathBuf representing the location to save the output file to (Optional)
-/// 
+///
 pub fn reverse(infile: PathBuf, outfile: Option<PathBuf>) {
     let mut doc = load_pdf(&infile);
 
@@ -138,15 +158,15 @@ pub fn reverse(infile: PathBuf, outfile: Option<PathBuf>) {
     }
 }
 
-/// Rotates all pages by the input degree amount. 
-/// 
+/// Rotates all pages by the input degree amount.
+///
 /// * `infile` - a PathBuf of the file to reverse
 /// * `outfile` - a PathBuf representing the location to save the output file to (Optional)
-/// 
-pub fn rotate(infile: PathBuf, 
-              outfile: Option<PathBuf>, 
-              degrees: i32, 
-              pages: Option<Vec<u32>>, 
+///
+pub fn rotate(infile: PathBuf,
+              outfile: Option<PathBuf>,
+              degrees: i32,
+              pages: Option<Vec<u32>>,
               every: Option<u32>) {
     let mut doc = load_pdf(&infile);
 
@@ -170,7 +190,7 @@ fn load_pdf(filepath: &PathBuf) -> Document {
         Err(error) => panic!("Failed to load document: \n {}", error)
     };
 
-    doc    
+    doc
 }
 
 fn save_pdf(doc: &mut Document, filepath: PathBuf) {
@@ -188,11 +208,24 @@ fn save_pdf(doc: &mut Document, filepath: PathBuf) {
     }
 }
 
+fn split_outfile_for_page(base: &PathBuf, page: u32) -> PathBuf {
+    let parent = base.parent().unwrap_or(std::path::Path::new(""));
+    let stem = base
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("outfile");
+
+    match base.extension().and_then(|e| e.to_str()) {
+        Some(ext) => parent.join(format!("{}_{}.{}", stem, page, ext)),
+        None => parent.join(format!("{}_{}.pdf", stem, page)),
+    }
+}
+
 fn delete_pages(doc: &mut Document, pages: Option<Vec<u32>>, every: Option<u32>, negate: bool) {
     match pages {
         Some(p) => {
             let page_numbers: &[u32] = &make_pages_page_numbers(p, doc, negate);
-            doc.delete_pages(page_numbers); // silently fails for pages outside the actual page range    
+            doc.delete_pages(page_numbers); // silently fails for pages outside the actual page range
         }
         None => {
             // --every must have been used
@@ -234,7 +267,7 @@ fn make_pages_page_numbers(pages: Vec<u32>, doc: &mut Document, negate: bool) ->
     if negate {
         let mut pages_set: HashSet<u32> = HashSet::new();
         // problematic only if usize is 64bits and len() is above u32::MAX
-        pages_set.extend(1..=doc.get_pages().len() as u32); 
+        pages_set.extend(1..=doc.get_pages().len() as u32);
         for p in pages.iter() {
             pages_set.remove(p);
         }
@@ -253,14 +286,14 @@ fn make_every_page_numbers(every: u32, doc: &mut Document, negate: bool) -> Vec<
         } else {
             for (page_num, _) in doc.get_pages() {
                 if page_num % every == 0 { pages.push(page_num); }
-            } 
+            }
     }
     pages
 }
 
 fn reverse_doc(doc: &mut Document, filepath: PathBuf) {
     // Try getting the Kids reference table from Pages and reversing the vector of references
-    // do this for all Pages objects as there may be more than one in the 
+    // do this for all Pages objects as there may be more than one in the
 
     // inefficient to scan every object in the document when we are only looking for Pages
     for (object_id, object) in doc.clone().objects.iter() { // TODO: fix wasteful clone
@@ -324,7 +357,7 @@ fn rotate_select_pages(doc: &mut Document, page_numbers: &Vec<u32>, degrees: i32
                 if let Ok(page) = doc.get_object(*id) {
                     if let Ok(dict) = page.as_dict() {
                         let mut dict = dict.clone();
-                        
+
                         dict.set("Rotate", degrees);
                         doc.objects.insert(*id, Object::Dictionary(dict));
                     }
@@ -340,7 +373,7 @@ fn rotate_all_pages(doc: &mut Document, degrees: i32) {
         if let Ok(page) = doc.get_object(object_id) {
             if let Ok(dict) = page.as_dict() {
                 let mut dict = dict.clone();
-                
+
                 dict.set("Rotate", degrees);
                 doc.objects.insert(object_id, Object::Dictionary(dict));
             }
@@ -372,9 +405,9 @@ fn get_files_from_dir(dir: &PathBuf) -> Result<Vec<PathBuf>, std::io::Error> {
         .into_iter()
         .filter(|result| result.is_ok()) // filter to non Err results
         .map(|result| result.unwrap().path()) // turn valid DirEntries into PathBufs
-        .filter(|result| 
-            result.is_file() && 
-            result.extension() != None && 
+        .filter(|result|
+            result.is_file() &&
+            result.extension() != None &&
             (result.extension().unwrap() == "pdf" || result.extension().unwrap() == "PDF")) // filter to only files
         .collect()
     )
@@ -397,7 +430,7 @@ fn merge_documents(documents: Vec<Document>, outdoc: &mut Document) {
         // renumber the current doc starting with the current max_id
         doc.renumber_objects_with(max_id);
         // sets the new max_id to the id of the last page of the current doc + 1 so that the next doc starts in the correct location
-        max_id = doc.max_id + 1; 
+        max_id = doc.max_id + 1;
 
         // extend the documents_pages with a BTreeMap of ObjectId and Object which is a enum of Object types
         // An object can be:
@@ -427,7 +460,7 @@ fn merge_documents(documents: Vec<Document>, outdoc: &mut Document) {
         documents_objects.extend(doc.objects);
     }
 
-    // Catalog and Pages are mandatory 
+    // Catalog and Pages are mandatory
     let mut catalog_object: Option<(ObjectId, Object)> = None;
     let mut pages_object: Option<(ObjectId, Object)> = None;
 
