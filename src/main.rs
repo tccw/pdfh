@@ -42,8 +42,8 @@ enum Commands {
         #[clap(required = true, parse(from_os_str))]
         outfile: std::path::PathBuf,
         #[clap(group = "split", short, long, multiple=true, value_parser)]
-        /// List of space separated page numbers to split out
-        pages: Option<Vec<u32>>,
+        /// Page numbers or ranges to split out, e.g. "1 3 5" or "1-5 7 10-12"
+        pages: Option<Vec<String>>,
         #[clap(group = "split", short, long, value_parser)]
         /// Split every ith page
         every: Option<u32>,
@@ -80,8 +80,8 @@ enum Commands {
         /// Positive values are CW, negative are CCW rotation. Multipules of 90.
         degrees: i32,
         #[clap(group = "rot", short, long, multiple=true, value_parser)]
-        /// List of space separated page numbers. All pages if not provided.
-        pages: Option<Vec<u32>>,
+        /// Page numbers or ranges to rotate, e.g. "1 3 5" or "1-5 7 10-12". All pages if not provided.
+        pages: Option<Vec<String>>,
         #[clap(group = "rot", short, long, value_parser)]
         every: Option<u32>
     },
@@ -100,8 +100,8 @@ enum Commands {
         /// Modified inplace if not provided
         outfile: Option<std::path::PathBuf>,
         #[clap(group = "dels", short, long,  multiple=true, value_parser)]
-        /// List of space separated page numbers
-        pages: Option<Vec<u32>>,
+        /// Page numbers or ranges to delete, e.g. "1 3 5" or "1-5 7 10-12"
+        pages: Option<Vec<String>>,
         #[clap(group = "dels", short, long, value_parser)]
         /// Delete every ith page
         every: Option<u32>,
@@ -136,8 +136,8 @@ enum Commands {
         /// Modified inplace if not provided
         outfile: std::path::PathBuf,
         #[clap(group = "extract", short, long,  multiple=true, value_parser)]
-        /// List of space separated page numbers
-        pages: Option<Vec<u32>>,
+        /// Page numbers or ranges to extract, e.g. "1 3 5" or "1-5 7 10-12"
+        pages: Option<Vec<String>>,
         #[clap(group = "extract", short, long, value_parser)]
         /// Delete every ith page
         every: Option<u32>,
@@ -152,6 +152,7 @@ fn main() {
             utils::merge(&infiles, outfile, compress)
         }
         Commands::Split { infile, outfile, pages, every, compress} => {
+            let pages = pages.map(utils::parse_page_ranges);
             utils::split(infile, outfile, pages, every, compress);
         }
         Commands::Dupe { infile, outfile, num, compress} => {
@@ -162,6 +163,7 @@ fn main() {
                            degrees,
                            pages,
                            every } => {
+            let pages = pages.map(utils::parse_page_ranges);
             utils::rotate(infile, outfile, degrees, pages, every);
         },
         Commands::Delete { infile,
@@ -171,6 +173,7 @@ fn main() {
                            negate,
                            compress } => {
 
+            let pages = pages.map(utils::parse_page_ranges);
             utils::delete(infile, outfile, pages, every, negate, compress);
         },
         Commands::Reverse { infile, outfile } => {
@@ -180,6 +183,7 @@ fn main() {
                             outfile,
                             pages,
                             every } => {
+            let pages = pages.map(utils::parse_page_ranges);
             utils::extract(infile, outfile, pages, every);
         }
     }

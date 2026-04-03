@@ -118,6 +118,51 @@ pub fn extract(infile: PathBuf, outfile: PathBuf, pages: Option<Vec<u32>>, every
     save_pdf(&mut doc, outfile);
 }
 
+/// Parses page range tokens into a flat, sorted list of page numbers.
+///
+/// Each token may be:
+/// - A single page number: `"3"`
+/// - A range: `"1-5"` (inclusive on both ends)
+/// - A comma-separated mix: `"1-3,5,7-9"`
+///
+/// Tokens may themselves be comma-separated, so both `["1-5", "7"]` and
+/// `["1-5,7"]` produce the same result.
+///
+/// Panics if any token cannot be parsed.
+pub fn parse_page_ranges(tokens: Vec<String>) -> Vec<u32> {
+    let mut pages: Vec<u32> = Vec::new();
+
+    for token in &tokens {
+        for part in token.split(',') {
+            let part = part.trim();
+            if part.contains('-') {
+                let mut iter = part.splitn(2, '-');
+                let start: u32 = iter
+                    .next()
+                    .and_then(|s| s.trim().parse().ok())
+                    .unwrap_or_else(|| panic!("Invalid page range start in '{}'", part));
+                let end: u32 = iter
+                    .next()
+                    .and_then(|s| s.trim().parse().ok())
+                    .unwrap_or_else(|| panic!("Invalid page range end in '{}'", part));
+                if start > end {
+                    panic!("Page range start {} is greater than end {} in '{}'", start, end, part);
+                }
+                pages.extend(start..=end);
+            } else {
+                let n: u32 = part
+                    .parse()
+                    .unwrap_or_else(|_| panic!("Invalid page number '{}'", part));
+                pages.push(n);
+            }
+        }
+    }
+
+    pages.sort_unstable();
+    pages.dedup();
+    pages
+}
+
 /// Splits a PDF into one file per page, optionally limited to a subset of pages
 ///
 /// * `infile` - a PathBuf of the file to split

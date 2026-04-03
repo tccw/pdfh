@@ -310,4 +310,49 @@ mod tests {
 
         utils::split(test_resource.file_bad_header, base_outfile, None, None, false);
     }
+
+    // --- parse_page_ranges ---
+
+    #[test]
+    fn parse_page_ranges_individual_numbers() {
+        let result = utils::parse_page_ranges(vec!["1".into(), "3".into(), "5".into()]);
+        assert_eq!(result, vec![1, 3, 5]);
+    }
+
+    #[test]
+    fn parse_page_ranges_single_range() {
+        let result = utils::parse_page_ranges(vec!["1-5".into()]);
+        assert_eq!(result, vec![1, 2, 3, 4, 5]);
+    }
+
+    #[test]
+    fn parse_page_ranges_mixed_tokens() {
+        let mut result = utils::parse_page_ranges(vec!["1-3".into(), "5".into(), "7-9".into()]);
+        result.sort();
+        assert_eq!(result, vec![1, 2, 3, 5, 7, 8, 9]);
+    }
+
+    #[test]
+    fn parse_page_ranges_comma_separated_in_one_token() {
+        let result = utils::parse_page_ranges(vec!["1-3,5,7-9".into()]);
+        assert_eq!(result, vec![1, 2, 3, 5, 7, 8, 9]);
+    }
+
+    #[test]
+    fn parse_page_ranges_deduplicates() {
+        let result = utils::parse_page_ranges(vec!["1-3".into(), "2-4".into()]);
+        assert_eq!(result, vec![1, 2, 3, 4]);
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid page number")]
+    fn parse_page_ranges_invalid_token_panics() {
+        utils::parse_page_ranges(vec!["abc".into()]);
+    }
+
+    #[test]
+    #[should_panic(expected = "Page range start")]
+    fn parse_page_ranges_inverted_range_panics() {
+        utils::parse_page_ranges(vec!["5-2".into()]);
+    }
 }
