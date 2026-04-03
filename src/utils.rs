@@ -118,17 +118,29 @@ pub fn extract(infile: PathBuf, outfile: PathBuf, pages: Option<Vec<u32>>, every
     save_pdf(&mut doc, outfile);
 }
 
-/// Splits a PDF into one file per page
+/// Splits a PDF into one file per page, optionally limited to a subset of pages
 ///
 /// * `infile` - a PathBuf of the file to split
 /// * `outfile` - base output filepath; page number is appended before extension
+/// * `pages` - optional list of specific page numbers to split out; all pages if None
+/// * `every` - optional stride: split every ith page
 /// * `compress` - compress each output file before saving
-pub fn split(infile: PathBuf, outfile: PathBuf, compress: bool) {
+pub fn split(infile: PathBuf, outfile: PathBuf, pages: Option<Vec<u32>>, every: Option<u32>, compress: bool) {
     let doc = load_pdf(&infile);
-    let pages: Vec<u32> = doc.get_pages().keys().cloned().collect();
 
-    for page_num in pages {
+    // Determine which pages to emit
+    let all_pages: Vec<u32> = doc.get_pages().keys().cloned().collect();
+    let selected: Vec<u32> = match pages {
+        Some(ref p) => p.clone(),
+        None => match every {
+            Some(e) => all_pages.iter().cloned().filter(|n| n % e == 0).collect(),
+            None => all_pages,
+        }
+    };
+
+    for page_num in selected {
         let mut page_doc = doc.clone();
+        // negate=true: keep only page_num, delete everything else
         delete_pages(&mut page_doc, Some(vec![page_num]), None, true);
 
         if compress { page_doc.compress(); }

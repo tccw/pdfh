@@ -30,12 +30,23 @@ enum Commands {
         compress: bool
     },
     #[clap(arg_required_else_help = false)]
+    #[clap(group(
+        ArgGroup::new("split")
+            .required(false)
+            .args(&["pages", "every"])
+        ))]
     /// Splits each page of a PDF into a separate file
     Split {
         #[clap(required = true, parse(from_os_str))]
         infile: std::path::PathBuf,
         #[clap(required = true, parse(from_os_str))]
         outfile: std::path::PathBuf,
+        #[clap(group = "split", short, long, multiple=true, value_parser)]
+        /// List of space separated page numbers to split out
+        pages: Option<Vec<u32>>,
+        #[clap(group = "split", short, long, value_parser)]
+        /// Split every ith page
+        every: Option<u32>,
         #[clap(short, long)]
         compress: bool
     },
@@ -140,8 +151,8 @@ fn main() {
         Commands::Merge { infiles, outfile, compress } => {
             utils::merge(&infiles, outfile, compress)
         }
-        Commands::Split { infile, outfile, compress} => {
-            utils::split(infile, outfile, compress);
+        Commands::Split { infile, outfile, pages, every, compress} => {
+            utils::split(infile, outfile, pages, every, compress);
         }
         Commands::Dupe { infile, outfile, num, compress} => {
             utils::dupe(infile, outfile, num, compress);

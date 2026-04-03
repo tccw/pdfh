@@ -213,7 +213,7 @@ mod tests {
         let test_resource: TestResources = TestResources::new();
         let base_outfile = build_outfile_pathbuf(function_name!());
 
-        utils::split(test_resource.two_pages, base_outfile.clone(), false);
+        utils::split(test_resource.two_pages, base_outfile.clone(), None, None, false);
 
         let out1 = split_output_for_page(&base_outfile, 1);
         let out2 = split_output_for_page(&base_outfile, 2);
@@ -234,17 +234,14 @@ mod tests {
         let test_resource: TestResources = TestResources::new();
         let base_outfile = build_outfile_pathbuf(function_name!());
 
-        let source = Document::load(&test_resource.multi_page_multiple_pages_obj).unwrap();
-        let page_count = source.get_pages().len() as u32;
+        // Split only page 1 from the 164-page source to keep test fast while still
+        // exercising the intermediate Pages-object structure
+        utils::split(test_resource.multi_page_multiple_pages_obj, base_outfile.clone(), Some(vec![1]), None, false);
 
-        utils::split(test_resource.multi_page_multiple_pages_obj, base_outfile.clone(), false);
-
-        for page in 1..=page_count {
-            let out = split_output_for_page(&base_outfile, page);
-            assert!(out.exists());
-            let doc = Document::load(&out).unwrap();
-            assert_eq!(doc.get_pages().len(), 1);
-        }
+        let out = split_output_for_page(&base_outfile, 1);
+        assert!(out.exists(), "expected output file for page 1");
+        let doc = Document::load(&out).unwrap();
+        assert_eq!(doc.get_pages().len(), 1);
     }
 
     #[test]
@@ -253,7 +250,7 @@ mod tests {
         let test_resource: TestResources = TestResources::new();
         let base_outfile = build_outfile_pathbuf(function_name!());
 
-        utils::split(test_resource.single_page, base_outfile.clone(), true);
+        utils::split(test_resource.single_page, base_outfile.clone(), None, None, true);
 
         let out = split_output_for_page(&base_outfile, 1);
         assert!(out.exists());
@@ -262,11 +259,55 @@ mod tests {
     }
 
     #[test]
+    #[named]
+    fn split_with_pages_selection_creates_subset() {
+        let test_resource: TestResources = TestResources::new();
+        let base_outfile = build_outfile_pathbuf(function_name!());
+
+        // two-page doc, only split page 1
+        utils::split(test_resource.two_pages, base_outfile.clone(), Some(vec![1]), None, false);
+
+        let out1 = split_output_for_page(&base_outfile, 1);
+        let out2 = split_output_for_page(&base_outfile, 2);
+
+        assert!(out1.exists());
+        assert!(!out2.exists(), "page 2 should not be produced when only page 1 is selected");
+
+        let doc1 = Document::load(&out1).unwrap();
+        assert_eq!(doc1.get_pages().len(), 1);
+    }
+
+    #[test]
+    #[named]
+    fn split_with_every_selection() {
+        let test_resource: TestResources = TestResources::new();
+        let base_outfile = build_outfile_pathbuf(function_name!());
+
+        // multi-page doc, split every 2nd page
+        let source = Document::load(&test_resource.multi_page_single_page_obj).unwrap();
+        let page_count = source.get_pages().len() as u32;
+
+        utils::split(test_resource.multi_page_single_page_obj, base_outfile.clone(), None, Some(2), false);
+
+        // every even page should have a file; odd pages should not
+        for page in 1..=page_count {
+            let out = split_output_for_page(&base_outfile, page);
+            if page % 2 == 0 {
+                assert!(out.exists(), "expected page {} to be split", page);
+                let doc = Document::load(&out).unwrap();
+                assert_eq!(doc.get_pages().len(), 1);
+            } else {
+                assert!(!out.exists(), "unexpected file for page {}", page);
+            }
+        }
+    }
+
+    #[test]
     #[should_panic(expected = "Failed to load document: \n Invalid file header")]
     fn split_invalid_pdf_panics() {
         let test_resource: TestResources = TestResources::new();
         let base_outfile = build_outfile_pathbuf("split_invalid_pdf_panics");
 
-        utils::split(test_resource.file_bad_header, base_outfile, false);
+        utils::split(test_resource.file_bad_header, base_outfile, None, None, false);
     }
 }
